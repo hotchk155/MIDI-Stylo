@@ -167,7 +167,7 @@ void ledFlash(unsigned long milliseconds, unsigned long a, unsigned long b, unsi
 #define P_DATA  12
 
 #define KEYBOARD_DEBOUNCE_TIME 20
-#define KEYBOARD_MAX_OCTAVE 5
+#define KEYBOARD_MAX_OCTAVE 4
 #define KEYBOARD_INIT_OCTAVE 2
 #define KEYBOARD_MIN_OCTAVE 0
 #define KEYBOARD_ROOT_NOTE 21
@@ -771,6 +771,15 @@ void setup()
   appStandBy = 1;
 }
 
+// LED colours to indicate octave
+unsigned long appOctaveCol[5] = {
+  COL_DIMGREEN, 
+  COL_GREEN, 
+  COL_DIMWHITE, 
+  COL_BLUE, 
+  COL_DIMBLUE
+};
+
 
 /////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////
@@ -781,7 +790,6 @@ void setup()
 /////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////
-unsigned long octaveCol[5] = {COL_DIMGREEN, COL_GREEN, COL_DIMWHITE, COL_BLUE, COL_DIMBLUE};
 void loop()
 {
   // poll buttons
@@ -800,7 +808,7 @@ void loop()
     keyboardRun(ulMilliseconds);
     
     // decide the status led colour
-    unsigned long col1 = octaveCol[keyboardOctave];
+    unsigned long col1 = appOctaveCol[keyboardOctave];
     unsigned long col2 = col1;
     if(tiltActive)
     {
