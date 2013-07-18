@@ -8,6 +8,7 @@
 //////////////////////////////////////////////////////////////////////////
 #include <EEPROM.h>
 
+#define DEBUG 1
 // standby flag
 byte appStandBy;
 
@@ -23,6 +24,7 @@ byte appStandBy;
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
+
 //////////////////////////////////////////////////////////////////////////
 // macro defs
 #define MIDI_PITCHBEND_CENTRE 0x2000  // No pitch bend
@@ -32,7 +34,11 @@ byte appStandBy;
 // Init MIDI comms
 void midiInit()
 {
+#ifdef DEBUG  
+   Serial.begin(9600);
+#else   
    Serial.begin(31250);
+#endif   
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -41,9 +47,9 @@ void midiNote(byte note, byte velocity)
 {
   note &= 0x7f;
   velocity &= 0x7f;
-  Serial.print(0x90, BYTE);
-  Serial.print(note, BYTE);
-  Serial.print(velocity, BYTE);
+  Serial.write(0x90);
+  Serial.write(note);
+  Serial.write(velocity);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -51,9 +57,9 @@ void midiNote(byte note, byte velocity)
 void midiPitchBend(int value)
 {
     value &= 0x3fff;
-    Serial.print(0xe0, BYTE);
-    Serial.print(value & 0x7f, BYTE);
-    Serial.print((value>>7) & 0x7f, BYTE);  
+    Serial.write(0xe0);
+    Serial.write(value & 0x7f);
+    Serial.write((value>>7) & 0x7f);  
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -61,9 +67,9 @@ void midiPitchBend(int value)
 void midiController(byte cc, byte value)
 {
     value &= 0x7f;
-    Serial.print(0xb0, BYTE);
-    Serial.print(cc, BYTE);
-    Serial.print(value, BYTE);    
+    Serial.write(0xb0);
+    Serial.write(cc);
+    Serial.write(value);    
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -83,9 +89,9 @@ void midiController(byte cc, byte value)
 // macro defs
 
 // pins
-#define P_PWM_RED    3
-#define P_PWM_GREEN  6
-#define P_PWM_BLUE   5
+#define P_PWM_RED    9
+#define P_PWM_GREEN  11
+#define P_PWM_BLUE   10
 
 // colours (rgb PWM values stored in a 24 bits of an unsigned long)
 #define RGB(r,g,b) (((unsigned long)(r)<<16)|((unsigned long)(g)<<8)|(unsigned long)(b))
@@ -146,6 +152,24 @@ void ledFlash(unsigned long milliseconds, unsigned long a, unsigned long b, unsi
   }
 }
 
+//////////////////////////////////////////////////////////////////////////
+// TEST LEDS
+void ledTest() 
+{
+  for(;;)
+  {
+    Serial.println("Red");
+    setLed(COL_RED);
+    delay(1000);
+    Serial.println("Green");
+    setLed(COL_GREEN);
+    delay(1000);
+    Serial.println("Blue");
+    setLed(COL_BLUE);
+    delay(1000);
+  }
+}
+
 /////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////
@@ -162,9 +186,9 @@ void ledFlash(unsigned long milliseconds, unsigned long a, unsigned long b, unsi
 // MACRO DEFS
 
 // pins
-#define P_LATCH 10
-#define P_CLK   11
-#define P_DATA  12
+#define P_LATCH 8
+#define P_CLK   7
+#define P_DATA  6
 
 #define KEYBOARD_DEBOUNCE_TIME 20
 #define KEYBOARD_MAX_OCTAVE 4
@@ -172,32 +196,27 @@ void ledFlash(unsigned long milliseconds, unsigned long a, unsigned long b, unsi
 #define KEYBOARD_MIN_OCTAVE 0
 #define KEYBOARD_ROOT_NOTE 21
 
-// This enum defines which bit in the 24-bit shift register 
-// output relates to each of the 20 notes. It reflects the
-// wiring of the shift register inputs to the stylophone pads
-// *** YOU MIGHT NEED TO CHANGE THIS DEFINITION BASED ON HOW
-// YOU WIRE UP YOUR SYLOPHONE PADS TO THE SHIFT REGISTERS ***
 enum {
-  KEY_A       = 16,
-  KEY_ASHARP  = 17,
-  KEY_B       = 21,
-  KEY_C       = 22,
-  KEY_CSHARP  = 23,
-  KEY_D       = 18,
-  KEY_DSHARP  = 20,
-  KEY_E       = 8,
-  KEY_F       = 10,
-  KEY_FSHARP  = 11,
-  KEY_G       = 19,
-  KEY_GSHARP  = 9,
-  KEY_A2      = 3,
-  KEY_ASHARP2 = 15,
-  KEY_B2      = 13,
-  KEY_C2      = 14,
-  KEY_CSHARP2 = 12,
-  KEY_D2      = 2,
-  KEY_ESHARP2 = 1,
-  KEY_F2      = 0
+  KEY_A        = 22,
+  KEY_ASHARP   = 21,
+  KEY_B        = 11,
+  KEY_C        = 10,   
+  KEY_CSHARP   = 9,
+  KEY_D        = 23,
+  KEY_DSHARP   = 8,
+  KEY_E        = 15,
+  KEY_F        = 14,
+  KEY_FSHARP   = 13,
+  KEY_G        = 20,
+  KEY_GSHARP   = 12,
+  KEY_A2       = 4,
+  KEY_ASHARP2  = 3,
+  KEY_B2       = 2,
+  KEY_C2       = 1,
+  KEY_CSHARP2  = 0,
+  KEY_D2       = 6,
+  KEY_ESHARP2  = 7,
+  KEY_F2       = 5
 };
 
 // vars
@@ -228,7 +247,7 @@ void keyboardInit()
   
   // initialise the lookup table that converts the
   // bit inputs to the actual MIDI note values
-  memset(keyMap,0,sizeof (keyMap));
+  memset(keyMap,255,sizeof (keyMap));
   keyMap[KEY_A]       = 0;
   keyMap[KEY_ASHARP]  = 1;  
   keyMap[KEY_B]       = 2;  
@@ -306,14 +325,18 @@ void keyboardRun(unsigned long ulMilliseconds)
   byte whichNote = 0;
   for(int i=0;i<24;++i)
   {
-    // fetch the next input bit
-    byte state = digitalRead(P_DATA);
-    
-    // is the stylus touching this pad?
-    if(state)
+    // check this is not a "floating" bit
+    if(keyMap[i] != 255)
     {
-      whichNote = keyMap[i] + keyboardRootMidiNote;
-      break;
+      // fetch the next input bit
+      byte state = digitalRead(P_DATA);
+      
+      // is the stylus touching this pad?
+      if(state)
+      {
+        whichNote = keyMap[i] + keyboardRootMidiNote;
+        break;
+      }
     }
     
     // pulse the clock line
@@ -364,6 +387,53 @@ void keyboardRun(unsigned long ulMilliseconds)
   }
 }
 
+
+
+/////////////////////////////////////////////////////////////////
+// TEST KEYBOARD
+void keyboardTest()
+{
+  byte states[24] = {0};
+  for(;;)
+  {
+    // latch the digital inputs to the shift registers
+    digitalWrite(P_LATCH,LOW);
+    digitalWrite(P_LATCH,HIGH);
+      
+      
+    // iterate through the 24 clock cycles of the shift
+    // registers
+    int pad = 0;
+    int note = 0;
+    for(int i=0;i<24;++i)
+    {
+      if(i==16||i==17||i==18||i==19)
+      {
+      }
+      else
+      {
+        // fetch the next input bit
+        byte state = digitalRead(P_DATA);
+        if(state != states[i])
+        {
+          states[i] = state;
+          Serial.print(i);
+          Serial.print("=");
+          Serial.println(state);        
+        }
+      }
+      
+      // pulse the clock line
+      digitalWrite(P_CLK,LOW);
+      digitalWrite(P_CLK,HIGH);
+    }
+    
+    // release the latch
+    digitalWrite(P_LATCH,HIGH);
+  }
+  
+}
+
 /////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////
@@ -378,10 +448,10 @@ void keyboardRun(unsigned long ulMilliseconds)
 // MACRO DEFS
 
 // pins
-#define P_ACC_ENABLE  18
+#define P_ACC_ENABLE  17
 #define P_ACC_X  A2
-#define P_ACC_Y  A1
-#define P_ACC_Z  A0
+#define P_ACC_Y  A0
+#define P_ACC_Z  A1
 
 // timing
 #define CALIBRATE_DELAY_PERIOD 3000
@@ -505,7 +575,7 @@ void tiltInit()
 
 /////////////////////////////////////////////////////////////////
 // RUN THE TILT SENSING CODE
-int tiltScaleInput(int value, int index, int deadwindow, int fsd, int minVal, int maxVal)
+int tiltScaleInput(int value, int index, int deadwindow, int fsd, int minVal, int maxVal, int sign)
 {  
   int outFsd = (maxVal - minVal)/2;   
   int midScale = (minVal + maxVal)/2;
@@ -516,7 +586,7 @@ int tiltScaleInput(int value, int index, int deadwindow, int fsd, int minVal, in
   }
   else
   {
-    int q = midScale + ((float)offset * outFsd) / fsd;
+    int q = midScale + sign * ((float)offset * outFsd) / fsd;
     return constrain(q,minVal,maxVal);
   }  
 }    
@@ -530,7 +600,7 @@ void tiltRun(unsigned long ulMilliseconds)
   int reading;
   
   // Read the pitch bend sensor
-  reading = tiltScaleInput(analogRead(P_ACC_X), TILT_CAL_XORG, TILT_X_DEADWINDOW, TILT_X_FSD, 0, 0x3fff);
+  reading = tiltScaleInput(analogRead(P_ACC_X), TILT_CAL_XORG, TILT_X_DEADWINDOW, TILT_X_FSD, 0, 0x3fff, -1);
   if(abs(reading - tiltLastPitchBend) > TILT_PITCHBEND_SEND_TOLERANCE)
   {
     midiPitchBend(reading);
@@ -538,7 +608,7 @@ void tiltRun(unsigned long ulMilliseconds)
   }
 
 /*  // auxilliary CC
-  reading = tiltScaleInput(analogRead(P_ACC_Y), TILT_CAL_YORG, TILT_Y_DEADWINDOW, TILT_Y_FSD, 0, 127);
+  reading = tiltScaleInput(analogRead(P_ACC_Y), TILT_CAL_YORG, TILT_Y_DEADWINDOW, TILT_Y_FSD, 0, 127, 1);
   if(abs(reading - tiltLastAux) > TILT_AUX_SEND_TOLERANCE)
   {
     midiController(MIDI_CC_AUX, reading);
@@ -546,7 +616,7 @@ void tiltRun(unsigned long ulMilliseconds)
   }*/
   
   // Read the mod wheel sensor
-  reading = tiltScaleInput(analogRead(P_ACC_Z), TILT_CAL_ZORG, TILT_Z_DEADWINDOW, TILT_Z_FSD, 0, 127);
+  reading = tiltScaleInput(analogRead(P_ACC_Z), TILT_CAL_ZORG, TILT_Z_DEADWINDOW, TILT_Z_FSD, 0, 127, -1);
   if(abs(reading - tiltLastModWheel) > TILT_MODWHEEL_SEND_TOLERANCE)
   {
     midiController(MIDI_CC_MODWHEEL, reading);
@@ -564,6 +634,19 @@ int tiltStopRunning()
   midiPitchBend(tiltLastPitchBend);
 }
 
+void tiltTest() {
+  for(;;)
+  {
+    Serial.print(analogRead(A0));
+    Serial.print(",");
+    Serial.print(analogRead(A1));
+    Serial.print(",");
+    Serial.print(analogRead(A2));
+    Serial.println();
+    delay(100);
+  }
+}
+
 /////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////
@@ -578,10 +661,12 @@ int tiltStopRunning()
 // MACRO DEFS
 
 // pins
-#define P_BUTTON1  9
-#define P_BUTTON2  8
-#define P_BUTTON3  7
+#define P_BUTTON1  3
+#define P_BUTTON2  18
+#define P_BUTTON3  19
+
 #define P_BUTTON4  2
+
 
 // bit map defs
 #define M_BUTTON1  0x01
@@ -752,6 +837,19 @@ void buttonsRun(unsigned long ulMilliseconds)
   buttonsLastState = state;  
 }
 
+void buttonsTest() 
+{
+  for(;;)
+  {
+     Serial.print(digitalRead(P_BUTTON1));
+     Serial.print(digitalRead(P_BUTTON2));
+     Serial.print(digitalRead(P_BUTTON3));
+     Serial.print(digitalRead(P_BUTTON4));
+     Serial.println();
+     delay(200);
+  }
+}
+
 /////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////
@@ -769,6 +867,13 @@ void setup()
   buttonsInit();
   tiltInit();
   appStandBy = 1;
+#ifdef DEBUG
+  Serial.println("Begin...");
+  keyboardTest();
+//buttonsTest();
+// tiltTest();
+//  ledTest();
+#endif
 }
 
 // LED colours to indicate octave
@@ -827,4 +932,5 @@ void loop()
     ledFlash(ulMilliseconds, col1, col2, 200);
   }
 }
+
 
