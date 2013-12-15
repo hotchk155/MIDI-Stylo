@@ -8,7 +8,7 @@
 //////////////////////////////////////////////////////////////////////////
 #include <EEPROM.h>
 
-#define DEBUG 1
+
 // standby flag
 byte appStandBy;
 
@@ -209,14 +209,14 @@ enum {
   KEY_FSHARP   = 13,
   KEY_G        = 20,
   KEY_GSHARP   = 12,
-  KEY_A2       = 4,
+  KEY_A2       = 6,
   KEY_ASHARP2  = 3,
   KEY_B2       = 2,
   KEY_C2       = 1,
   KEY_CSHARP2  = 0,
-  KEY_D2       = 6,
-  KEY_ESHARP2  = 7,
-  KEY_F2       = 5
+  KEY_D2       = 4,
+  KEY_DSHARP2  = 7,
+  KEY_E2       = 5
 };
 
 // vars
@@ -266,8 +266,8 @@ void keyboardInit()
   keyMap[KEY_C2]      = 15; 
   keyMap[KEY_CSHARP2] = 16; 
   keyMap[KEY_D2]      = 17; 
-  keyMap[KEY_ESHARP2] = 18; 
-  keyMap[KEY_F2]      = 19; 
+  keyMap[KEY_DSHARP2] = 18; 
+  keyMap[KEY_E2]      = 19; 
 
   // init vars
   memset(noteState,0,sizeof(noteState));
