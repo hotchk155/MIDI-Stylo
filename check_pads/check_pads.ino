@@ -4,6 +4,10 @@
 #define P_CLK   7
 #define P_DATA  6
 
+#define P_PWM_RED    9
+#define P_PWM_GREEN  11
+#define P_PWM_BLUE   10
+
 enum {
   KEY_A        = 22,
   KEY_ASHARP   = 21,
@@ -64,6 +68,10 @@ void keyboardInit()
   pinMode(P_CLK, OUTPUT);
   pinMode(P_DATA, INPUT);
   
+   pinMode(P_PWM_RED, OUTPUT);
+   pinMode(P_PWM_GREEN, OUTPUT);
+   pinMode(P_PWM_BLUE, OUTPUT);
+   
   // pull up resistors on inputs
   digitalWrite(P_DATA,HIGH);  
   digitalWrite(P_LATCH,HIGH);
@@ -75,9 +83,13 @@ void keyboardInit()
 // TEST KEYBOARD
 void keyboardTest()
 {
+  int q=0;
   byte states[24] = {0};
   for(;;)
   {
+    digitalWrite(P_PWM_BLUE, !(q&0x200));
+    q++;
+    
     // latch the digital inputs to the shift registers
     digitalWrite(P_LATCH,LOW);
     digitalWrite(P_LATCH,HIGH);
